@@ -2,5 +2,8 @@
     <string name="app_name">digicode</string>
     <string name="hello_world">Hello world!</string>
     <string name="menu_settings">Settings</string>
+    <string name="button_text">Ajouter le digicode</string>
+    <string name="integerTest">Entrer un code..</string>
+    <string name="EditTest">Nom du digicode / Lieux</string>
     <string name="title_activity_maps">Map</string>
 </resources>
