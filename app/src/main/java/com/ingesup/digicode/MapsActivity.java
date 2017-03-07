@@ -93,6 +93,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public static final String MyPREFERENCES = "MyPrefs" ;
     public static String Digicode = "codeKey";
     Map<String, String> digicodes = new HashMap<String, String>();
+    double latitude = 0;
+    double longitude = 0;
 
     EditText ed1,ed3,edall,GmapsInfo;
     Button b1;
@@ -128,9 +130,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         Map<String, ?> allEntries = sharedpreferences.getAll();
         for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
-            array.append("Société : "+entry.getKey() + "  | Digicode : " + entry.getValue().toString()+"\n");
+            array.append("Nom : "+entry.getKey() + "  | GPS : " + entry.getValue().toString()+"\n");
         }
-        //  sharedpreferences.edit().clear().commit();
+
+        //sharedpreferences.edit().clear().commit();
         String value1 = sharedpreferences.getString("Company", "");
         ed1.setText(value1);
         String value3 = sharedpreferences.getString("Digicode", "");
@@ -144,7 +147,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 //  addDigicode();
                 String n  = ed1.getText().toString();
                 String e  = ed3.getText().toString();
-                digicodes.put(n, e);
+                String tmp = (n+"| Code :"+e);
+                double n1 = latitude;
+                double n2 = longitude;
+                String n1toString = String.valueOf(n1);
+                String n2toString = String.valueOf(n2);
+                String tmpGPS = (n1toString+"/"+n2toString);
+                digicodes.put(tmp, tmpGPS);
 
                 sharedpreferences = getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
                 SharedPreferences.Editor sharedpreferencesEditor = sharedpreferences.edit();
@@ -154,7 +163,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     sharedpreferencesEditor.putString(s, digicodes.get(s));
                 }
                 sharedpreferencesEditor.commit();
-
+                loadDatasDigi();
 
                 /////////////////////// AVEC SHAREDPREFERENCE ////////////////////////////////
                 //sharedpreferences = getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
@@ -182,6 +191,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
+    public void loadDatasDigi() {
+        StringBuilder array = new StringBuilder(100);
+        sharedpreferences = getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
+        Map<String, ?> allEntries = sharedpreferences.getAll();
+        for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
+            array.append("Nom : "+entry.getKey() + "  | GPS : " + entry.getValue().toString()+"\n");
+        }
+        edall.setText(array);
+    }
 
     /**
      * Manipulates the map once available.
@@ -258,8 +276,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (mCurrLocationMarker != null) {
             mCurrLocationMarker.remove();
         }
-
-        //Place current location marker
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
 
         MarkerOptions markerOptions = new MarkerOptions();
@@ -267,13 +283,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         markerOptions.title("Current Position");
         markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
         mCurrLocationMarker = mMap.addMarker(markerOptions);
-        double latitude = location.getLatitude();
-        double longitude = location.getLongitude();
-        //move map camera
+        latitude = location.getLatitude();
+        longitude = location.getLongitude();
+        Location locationOne = new Location("");
+        locationOne.setLatitude(48.85115353);
+        locationOne.setLongitude(2.2673489);
+        float distanceInMetersOne = locationOne.distanceTo(location);
+        String distanceInMetersOneLocToOther = String.valueOf(distanceInMetersOne);
+        //Log.d("VALEUR", "Value: " + Float.toString(distanceInMetersOne));
+        Toast.makeText(MapsActivity.this,"Vous êtes à "+distanceInMetersOneLocToOther+" mètres d'une de vos saisies",Toast.LENGTH_LONG).show();
         mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
         mMap.animateCamera(CameraUpdateFactory.zoomTo(11));
         GmapsInfo.setText("Latitude:" + latitude + ", Longitude:" + longitude);
-        //stop location updates
         if (mGoogleApiClient != null) {
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
         }
