@@ -7,7 +7,32 @@ import android.net.Uri;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
-
+import android.content.Context;
+import android.content.SharedPreferences;
+import java.util.*;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.content.Context;
+import android.os.Build;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.FragmentActivity;
+import android.os.Bundle;
+import android.support.v4.content.ContextCompat;
+import android.widget.Toast;
 import com.google.android.gms.appindexing.Action;
 import com.google.android.gms.appindexing.AppIndex;
 import com.google.android.gms.appindexing.Thing;
@@ -29,6 +54,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -43,194 +69,298 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import java.util.ArrayList;
+import org.json.JSONException;
+import org.json.JSONObject;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import android.util.Log;
+import java.util.HashMap;
+import java.util.List;
 
-public class MapsActivity extends FragmentActivity implements
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
         LocationListener {
 
+    private GoogleMap mMap;
+    GoogleApiClient mGoogleApiClient;
+    Location mLastLocation;
+    Marker mCurrLocationMarker;
+    LocationRequest mLocationRequest;
+    public static final String MyPREFERENCES = "MyPrefs" ;
+    public static String Digicode = "codeKey";
+    Map<String, String> digicodes = new HashMap<String, String>();
 
-    //These variable are initalized here as they need to be used in more than one methid
-    private double currentLatitude; //lat of user
-    private double currentLongitude; //long of user
-
-    private double latitudeVillageApartmets = 53.385952001750184;
-    private double longitudeVillageApartments = -6.599087119102478;
-
-
-    public static final String TAG = MapsActivity.class.getSimpleName();
-
-    private final static int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
-
-    private GoogleMap mMap; // Might be null if Google Play services APK is not available.
-
-    private GoogleApiClient mGoogleApiClient;
-    private LocationRequest mLocationRequest;
+    EditText ed1,ed3,edall,GmapsInfo;
+    Button b1;
+    SharedPreferences sharedpreferences;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            checkLocationPermission();
+        }
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
 
-        // ATTENTION: This "addApi(AppIndex.API)"was auto-generated to implement the App Indexing API.
-        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        ed1=(EditText)findViewById(R.id.editText);
+        ed3=(EditText)findViewById(R.id.editText3);
+        edall=(EditText)findViewById(R.id.editText1);
+        GmapsInfo=(EditText)findViewById(R.id.GmapsInfo);
+        b1=(Button)findViewById(R.id.button);
+        //
+        StringBuilder array = new StringBuilder(100);
+        sharedpreferences = getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
+        loadArray();
+       // char[] array = new char[0];
+        if(MyPREFERENCES!=null){
+            edall.setText(MyPREFERENCES);
+        }else
+            System.out.println("Array is not initialized or empty");
+
+        Map<String, ?> allEntries = sharedpreferences.getAll();
+        for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
+            array.append("Société : "+entry.getKey() + "  | Digicode : " + entry.getValue().toString()+"\n");
+        }
+        //  sharedpreferences.edit().clear().commit();
+        String value1 = sharedpreferences.getString("Company", "");
+        ed1.setText(value1);
+        String value3 = sharedpreferences.getString("Digicode", "");
+        ed3.setText(value3);
+        edall.setText(array);
+       // edall.setText("Votre dernière sauvegarde : \n"+"Société -> "+value1+"\n"+"Etage->"+"\n"+"Digicode->"+value3);
+
+        b1.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //  addDigicode();
+                String n  = ed1.getText().toString();
+                String e  = ed3.getText().toString();
+                digicodes.put(n, e);
+
+                sharedpreferences = getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
+                SharedPreferences.Editor sharedpreferencesEditor = sharedpreferences.edit();
+
+                for (String s : digicodes.keySet()) {
+                    // use the name as the key, and the icon as the value
+                    sharedpreferencesEditor.putString(s, digicodes.get(s));
+                }
+                sharedpreferencesEditor.commit();
+
+
+                /////////////////////// AVEC SHAREDPREFERENCE ////////////////////////////////
+                //sharedpreferences = getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
+                //String n  = ed1.getText().toString();
+                //String ph  = ed2.getText().toString();
+                //String e  = ed3.getText().toString();
+                //SharedPreferences.Editor editor = sharedpreferences.edit();
+                //editor.putString("Company", n);
+                //editor.putString("InfoBuilding", ph);
+                //editor.putString("Digicode", e);
+                //editor.commit();
+                Toast.makeText(MapsActivity.this,"Thanks !! ",Toast.LENGTH_LONG).show();
+                //////////////////////////////////////////////////////////////////////////////
+            }
+            // private void addDigicode() {
+            //    String v1 = ed1.getText().toString();
+            //    String v2 = ed2.getText().toString();
+            //   String v3 = ed3.getText().toString();
+            //    DataDigicode newdigicodes1 = new DataDigicode(v1, v2, v3);
+            //    newdigicodes1.save();
+
+
+            //  }
+        });
+
+    }
+
+
+    /**
+     * Manipulates the map once available.
+     * This callback is triggered when the map is ready to be used.
+     * This is where we can add markers or lines, add listeners or move the camera. In this case,
+     * we just add a marker near Sydney, Australia.
+     * If Google Play services is not installed on the device, the user will be prompted to install
+     * it inside the SupportMapFragment. This method will only be triggered once the user has
+     * installed Google Play services and returned to the app.
+     */
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        mMap = googleMap;
+        mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
+
+        //Initialize Google Play Services
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.ACCESS_FINE_LOCATION)
+                    == PackageManager.PERMISSION_GRANTED) {
+                buildGoogleApiClient();
+                mMap.setMyLocationEnabled(true);
+            }
+        }
+        else {
+            buildGoogleApiClient();
+            mMap.setMyLocationEnabled(true);
+        }
+    }
+
+    protected synchronized void buildGoogleApiClient() {
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addConnectionCallbacks(this)
                 .addOnConnectionFailedListener(this)
                 .addApi(LocationServices.API)
-                .addApi(AppIndex.API).build();
-
-        // Create the LocationRequest object
-        mLocationRequest = LocationRequest.create()
-                .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-                .setInterval(10 * 1000)        // 10 seconds, in milliseconds
-                .setFastestInterval(1 * 1000); // 1 second, in milliseconds
+                .build();
+        mGoogleApiClient.connect();
     }
 
+    @Override
+    public void onConnected(Bundle bundle) {
 
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(1000);
+        mLocationRequest.setFastestInterval(1000);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+        }
 
-    /*These methods all have to do with the map and wht happens if the activity is paused etc*/
-    //contains lat and lon of another marker
-    private void setUpMap() {
-
-        MarkerOptions marker = new MarkerOptions().position(new LatLng(latitudeVillageApartmets, longitudeVillageApartments)).title("1"); //create marker
-        mMap.addMarker(marker); // adding marker
     }
 
-    //contains your lat and lon
-    private void handleNewLocation(Location location) {
-        Log.d(TAG, location.toString());
+    public String[] loadArray() {
+     //   getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
+        sharedpreferences = getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
+        int size = sharedpreferences.getInt(digicodes + "_size", 0);
+        String array[] = new String[size];
+        for(int i=0;i<size;i++)
+            array[i] = sharedpreferences.getString(digicodes + "_" + i, null);
+        return array;
+    }
 
-        currentLatitude = location.getLatitude();
-        currentLongitude = location.getLongitude();
+    @Override
+    public void onConnectionSuspended(int i) {
 
-        LatLng latLng = new LatLng(currentLatitude, currentLongitude);
+    }
 
-        MarkerOptions options = new MarkerOptions()
-                .position(latLng)
-                .title("You are here");
-        mMap.addMarker(options);
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom((latLng), 11.0F));
+    @Override
+    public void onLocationChanged(Location location) {
+
+        mLastLocation = location;
+        if (mCurrLocationMarker != null) {
+            mCurrLocationMarker.remove();
+        }
+
+        //Place current location marker
+        LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+
+        MarkerOptions markerOptions = new MarkerOptions();
+        markerOptions.position(latLng);
+        markerOptions.title("Current Position");
+        markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
+        mCurrLocationMarker = mMap.addMarker(markerOptions);
+        double latitude = location.getLatitude();
+        double longitude = location.getLongitude();
+        //move map camera
+        mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
+        mMap.animateCamera(CameraUpdateFactory.zoomTo(11));
+        GmapsInfo.setText("Latitude:" + latitude + ", Longitude:" + longitude);
+        //stop location updates
+        if (mGoogleApiClient != null) {
+            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
+        }
+
+    }
+
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {
+
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        setUpMapIfNeeded();
-        mGoogleApiClient.connect();
+        loadData();
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-
-        if (mGoogleApiClient.isConnected()) {
-            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
-            mGoogleApiClient.disconnect();
-        }
+    private void loadData() {
+        SharedPreferences mSettings = getSharedPreferences("MyPREFERENCES", Context.MODE_PRIVATE);
+        //Company = mSettings.getString("Company", Company);
+        //InfoBuilding = mSettings.getString("InfoBuilding", InfoBuilding);
+        Digicode = mSettings.getString("Digicode", Digicode);
     }
 
-    private void setUpMapIfNeeded() {
-        // Do a null check to confirm that we have not already instantiated the map.
-        if (mMap == null) {
+    public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
+    public boolean checkLocationPermission(){
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
 
-            if (mMap != null) {
+            // Asking user if explanation is needed
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                    Manifest.permission.ACCESS_FINE_LOCATION)) {
 
+                // Show an explanation to the user *asynchronously* -- don't block
+                // this thread waiting for the user's response! After the user
+                // sees the explanation, try again to request the permission.
+
+                //Prompt the user once explanation has been shown
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                        MY_PERMISSIONS_REQUEST_LOCATION);
+
+
+            } else {
+                // No explanation needed, we can request the permission.
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                        MY_PERMISSIONS_REQUEST_LOCATION);
             }
-
+            return false;
+        } else {
+            return true;
         }
     }
 
     @Override
-    public void onConnected(Bundle bundle) {
-        Location location = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-        if (location == null) {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case MY_PERMISSIONS_REQUEST_LOCATION: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                    // permission was granted. Do the
+                    // contacts-related task you need to do.
+                    if (ContextCompat.checkSelfPermission(this,
+                            Manifest.permission.ACCESS_FINE_LOCATION)
+                            == PackageManager.PERMISSION_GRANTED) {
+
+                        if (mGoogleApiClient == null) {
+                            buildGoogleApiClient();
+                        }
+                        mMap.setMyLocationEnabled(true);
+                    }
+
+                } else {
+
+                    // Permission denied, Disable the functionality that depends on this permission.
+                    Toast.makeText(this, "permission denied", Toast.LENGTH_LONG).show();
+                }
                 return;
             }
-            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+
+            // other 'case' lines to check for other permissions this app might request.
+            // You can add here other case statements according to your requirement.
         }
-        else {
-            handleNewLocation(location);
-        }
-    }
-
-    @Override
-    public void onConnectionSuspended(int i) {
-    }
-
-    @Override
-    public void onConnectionFailed(ConnectionResult connectionResult) {
-        if (connectionResult.hasResolution()) {
-            try {
-                // Start an Activity that tries to resolve the error
-                connectionResult.startResolutionForResult(this, CONNECTION_FAILURE_RESOLUTION_REQUEST);
-                /*
-                 * Thrown if Google Play services canceled the original
-                 * PendingIntent
-                 */
-            } catch (IntentSender.SendIntentException e) {
-                // Log the error
-                e.printStackTrace();
-            }
-        } else {
-            /*
-             * If no resolution is available, display a dialog to the
-             * user with the error.
-             */
-            Log.i(TAG, "Location services connection failed with code " + connectionResult.getErrorCode());
-        }
-    }
-
-    @Override
-    public void onLocationChanged(Location location) {
-        handleNewLocation(location);
-    }
-
-    /**
-     * ATTENTION: This was auto-generated to implement the App Indexing API.
-     * See https://g.co/AppIndexing/AndroidStudio for more information.
-     */
-    public Action getIndexApiAction() {
-        Thing object = new Thing.Builder()
-                .setName("Maps Page") // TODO: Define a title for the content shown.
-                // TODO: Make sure this auto-generated URL is correct.
-                .setUrl(Uri.parse("http://[ENTER-YOUR-URL-HERE]"))
-                .build();
-        return new Action.Builder(Action.TYPE_VIEW)
-                .setObject(object)
-                .setActionStatus(Action.STATUS_TYPE_COMPLETED)
-                .build();
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-
-        // ATTENTION: This was auto-generated to implement the App Indexing API.
-        // See https://g.co/AppIndexing/AndroidStudio for more information.
-        mGoogleApiClient.connect();
-        AppIndex.AppIndexApi.start(mGoogleApiClient, getIndexApiAction());
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-
-        // ATTENTION: This was auto-generated to implement the App Indexing API.
-        // See https://g.co/AppIndexing/AndroidStudio for more information.
-        AppIndex.AppIndexApi.end(mGoogleApiClient, getIndexApiAction());
-        mGoogleApiClient.disconnect();
     }
 }
